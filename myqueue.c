@@ -11,28 +11,34 @@
 #include "myqueue.h"
 #include "Utils/packetsource.h"
 void* test_queue_dispatcher(void* ptr);
-static bool is_empty(struct queue *q) {
+bool is_empty(struct queue *q) {
     return (q->tail == q->head);
 }
 
 // It should only be called by the enqueuing thread
 // to ensure correctness
-inline static bool is_full(struct queue* q) {
+bool is_full(struct queue* q) {
     return (q->tail - q->head == q->len);
 }
-
+extern lock_iface (*lock_gen)(void);
 void queue_init(struct queue *q, size_t len) {
     q->tail = 0;
     q->head = 0;
     q->buf = calloc(len, sizeof(Packet_t));
     q->len = len;
+    if (lock_gen != NULL) {
+        q->lock_inst = lock_gen();
+    }
     assert(q->buf != NULL);
 }
+
 
 void queue_enqueue(struct queue *q, Packet_t p) {
     assert(q != NULL);
     while (is_full(q)) {
+        unlock(&q->lock_inst);
         sched_yield();
+        lock(&q->lock_inst);
     }
     q->buf[q->tail % q->len] = p;
     q->tail ++;
@@ -41,7 +47,9 @@ void queue_enqueue(struct queue *q, Packet_t p) {
 Packet_t queue_dequeue(struct queue *q) {
     assert(q != NULL);
     while (is_empty(q)) {
+        unlock(&q->lock_inst);
         sched_yield();
+        lock(&q->lock_inst);
     }
     Packet_t r = q->buf[q->head % q->len];
     q->head ++;

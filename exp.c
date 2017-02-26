@@ -2,7 +2,6 @@
 // Created by Zixiong Liu on 2/12/17.
 //
 
-#include "exp.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <time.h>

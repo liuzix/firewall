@@ -10,6 +10,7 @@
 #include "Utils/fingerprint.h"
 #include "Utils/packetsource.h"
 #include "myqueue.h"
+#include "lock.h"
 
 
 #define DEFAULT_NUMBER_OF_ARGS 6
@@ -30,6 +31,11 @@ double parallelFirewall(int numPackets,
                        int queueDepth,
                        short experimentNumber);
 
+enum strategy_t {LOCK_FREE, HOMEQUEUE, RANDOMQUEUE, AWESOME};
+enum strategy_t strat;
+lock_iface (*lock_gen)(void) = NULL;
+
+
 
 
 int test_main ();
@@ -38,11 +44,6 @@ int main(int argc, char * argv[]) {
     return 0;
 }
 
-inline void print_progress(long long total, long long now) {
-    if (now % 1000000 == 0 && now != 0) {
-    //    printf("finished %lf percent\n", 100 * (double)now / (double)total);
-    }
-}
 
 double serialFirewall(const int numPackets,
                      const int numSources,
@@ -65,7 +66,6 @@ double serialFirewall(const int numPackets,
                 fingerprint += getFingerprint(tmp->iterations, tmp->seed);
                 free(tmp);
             }
-            print_progress(numPackets, j);
         }
         stopTimer(&watch);
     }
@@ -78,7 +78,6 @@ double serialFirewall(const int numPackets,
                 fingerprint += getFingerprint(tmp->iterations, tmp->seed);
                 free(tmp);
             }
-            print_progress(numPackets, j);
         }
         stopTimer(&watch);
     } else if (uniformFlag == 3) { // constant packets
@@ -90,7 +89,6 @@ double serialFirewall(const int numPackets,
                 fingerprint += getFingerprint(tmp->iterations, tmp->seed);
                 free(tmp);
             }
-            print_progress(numPackets, j);
         }
         stopTimer(&watch);
     }
@@ -98,18 +96,56 @@ double serialFirewall(const int numPackets,
 }
 
 struct WorkerArgs_t {
-    struct queue* q;
     int numPackets;
+    struct queue* q;
 };
 
+struct queue** qs;
+int numQueues;
+
+
+struct queue* dequeue_select() {
+    static int QueueCur = 0;
+    if (strat == AWESOME) {
+        int i = __sync_fetch_and_add(&QueueCur, 1);
+        return qs[i % numQueues];
+    }
+    else if (strat == RANDOMQUEUE) {
+        int i = (int)((double)random() / (double)RAND_MAX);
+        return qs[i % numQueues];
+    }
+}
 
 void* parallelWorker(void* arg) {
     struct WorkerArgs_t* a = arg;
-
     long fingerprint = 0;
-
     for (int i = 0; i < a->numPackets; i++) {
-        Packet_t p = queue_dequeue(a->q);
+        Packet_t p;
+        if (strat == HOMEQUEUE) {
+            lock(&a->q->lock_inst);
+            p = queue_dequeue(a->q);
+            unlock(&a->q->lock_inst);
+        }
+        else if (strat == RANDOMQUEUE) {
+            struct queue* temp_q = dequeue_select();
+            lock(&a->q->lock_inst);
+            p = queue_dequeue(temp_q);
+            unlock(&a->q->lock_inst);
+        }
+        else if (strat == AWESOME) {
+            struct queue* temp_q = a->q;
+            lock(&temp_q->lock_inst);
+            while (is_empty(temp_q)) {
+                unlock(&temp_q->lock_inst);
+                temp_q = dequeue_select();
+                lock(&temp_q->lock_inst);
+            }
+            p = queue_dequeue(temp_q);
+
+        }
+        else if (strat == LOCK_FREE) {
+            p = queue_dequeue(a->q);
+        }
         fingerprint += getFingerprint(p.iterations, p.seed);
     }
 
@@ -118,6 +154,11 @@ void* parallelWorker(void* arg) {
     return (void*) fingerprint;
 }
 
+struct queue* enqueue_select() {
+    assert(strat == AWESOME);
+    static int i = 0;
+    qs[__sync_fetch_and_add(&i, 1) % numQueues];
+}
 
 double parallelFirewall(int numPackets,
                        int numSources,
@@ -131,13 +172,13 @@ double parallelFirewall(int numPackets,
     long fingerprint = 0;
     startTimer(&watch);
 
-    struct queue **queues = calloc((size_t) numSources, sizeof(struct queue *));
-    assert(queues);
+    qs = calloc((size_t) numSources, sizeof(struct queue *));
+    assert(qs);
 
     // initializing queues
     for (int i = 0; i < numSources; i++) {
-        queues[i] = calloc(1, sizeof(struct queue));
-        queue_init(queues[i], (size_t) queueDepth);
+        qs[i] = calloc(1, sizeof(struct queue));
+        queue_init(qs[i], (size_t) queueDepth);
     }
 
     // creating threads
@@ -145,7 +186,7 @@ double parallelFirewall(int numPackets,
     for (int i = 0; i < numSources; i++) {
         threads[i] = calloc(1, sizeof(pthread_t));
         struct WorkerArgs_t* args = calloc(1, sizeof(struct WorkerArgs_t));
-        args->q = queues[i];
+        args->q = qs[i];
         args->numPackets = numPackets;
         pthread_create(threads[i], NULL, parallelWorker, args);
     }
@@ -158,10 +199,29 @@ double parallelFirewall(int numPackets,
                 p = getConstantPacket(mean);
             else
                 p = uniformFlag ? getUniformPacket(packetSource, j) : getExponentialPacket(packetSource, j);
-            queue_enqueue(queues[j], *p);
+            if (strat == LOCK_FREE)
+                queue_enqueue(qs[j], *p);
+            else if (strat == HOMEQUEUE || strat == RANDOMQUEUE) {
+                lock(&qs[j]->lock_inst);
+                queue_enqueue(qs[j], *p);
+                unlock(&qs[j]->lock_inst);
+            }
+            else if (strat == AWESOME) {
+                struct queue * temp_q;
+                while ((temp_q = enqueue_select())) {
+                    lock(&temp_q->lock_inst);
+                    if (is_full(temp_q)) {
+                        unlock(&temp_q->lock_inst);
+                        continue;
+                    } else {
+                        queue_enqueue(temp_q, *p);
+                        unlock(&temp_q->lock_inst);
+                        break;
+                    }
+                }
+            }
             free(p);
         }
-        print_progress(numPackets, i);
     }
 
     for (int i = 0; i < numSources; i++) {
@@ -210,7 +270,6 @@ double parallelSerial (int numPackets,
             Packet_t temp = queue_dequeue(queues[j]);
             fingerprint += getFingerprint(temp.iterations, temp.seed);
         }
-        print_progress(numPackets, i);
     }
 
 

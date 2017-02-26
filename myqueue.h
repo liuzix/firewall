@@ -6,12 +6,15 @@
 #define FIREWALL_MYQUEUE_H
 
 #include "Utils/packetsource.h"
+#include "lock.h"
+#include "stdbool.h"
 
 struct queue {
     volatile size_t head;
     volatile size_t tail;
     size_t len;
     Packet_t *buf;
+    lock_iface lock_inst;
 };
 
 /******
@@ -30,6 +33,9 @@ void queue_enqueue(struct queue* q, Packet_t p);
  * Dequeue from q. Block when empty
  */
 Packet_t queue_dequeue(struct queue *q);
+
+bool is_empty(struct queue *q);
+bool is_full(struct queue* q);
 
 void test_queue();
 
