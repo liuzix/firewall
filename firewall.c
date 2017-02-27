@@ -35,6 +35,7 @@ enum strategy_t {LOCK_FREE, HOMEQUEUE, RANDOMQUEUE, AWESOME};
 enum strategy_t strat;
 lock_iface (*lock_gen)(void) = NULL;
 
+__thread enum strategy_t _strat;
 
 
 
@@ -106,27 +107,28 @@ int numQueues;
 
 struct queue* dequeue_select() {
     static int QueueCur = 0;
-    if (strat == AWESOME) {
+    if (_strat == AWESOME) {
         int i = __sync_fetch_and_add(&QueueCur, 1);
         return qs[i % numQueues];
     }
-    else if (strat == RANDOMQUEUE) {
+    else if (_strat == RANDOMQUEUE) {
         int i = random();
         return qs[i % numQueues];
     }
 }
 
 void* parallelWorker(void* arg) {
+    _strat = strat;
     struct WorkerArgs_t* a = arg;
     long fingerprint = 0;
     for (int i = 0; i < a->numPackets; i++) {
         Packet_t p;
-        if (strat == HOMEQUEUE) {
+        if (_strat == HOMEQUEUE) {
             lock(&a->q->lock_inst);
             p = queue_dequeue(a->q);
             unlock(&a->q->lock_inst);
         }
-        else if (strat == RANDOMQUEUE) {
+        else if (_strat == RANDOMQUEUE) {
             while (true) {
                 struct queue *temp_q = dequeue_select();
                 lock(&temp_q->lock_inst);
@@ -139,7 +141,7 @@ void* parallelWorker(void* arg) {
                 break;
             }
         }
-        else if (strat == AWESOME) {
+        else if (_strat == AWESOME) {
             struct queue* temp_q = a->q;
             lock(&temp_q->lock_inst);
             while (is_empty(temp_q)) {
@@ -150,7 +152,7 @@ void* parallelWorker(void* arg) {
             p = queue_dequeue(temp_q);
             unlock(&temp_q->lock_inst);
         }
-        else if (strat == LOCK_FREE) {
+        else if (_strat == LOCK_FREE) {
             p = queue_dequeue(a->q);
         }
         fingerprint += getFingerprint(p.iterations, p.seed);
