@@ -31,7 +31,7 @@ double parallelFirewall(int numPackets,
                        int queueDepth,
                        short experimentNumber);
 
-enum strategy_t {LOCK_FREE, HOMEQUEUE, RANDOMQUEUE, AWESOME};
+
 enum strategy_t strat;
 lock_iface (*lock_gen)(void) = NULL;
 

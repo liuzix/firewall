@@ -8,6 +8,7 @@
 #include "Utils/packetsource.h"
 #include "lock.h"
 #include "stdbool.h"
+enum strategy_t {LOCK_FREE, HOMEQUEUE, RANDOMQUEUE, AWESOME};
 
 struct queue {
     volatile size_t head;
@@ -15,7 +16,7 @@ struct queue {
     size_t len;
     Packet_t *buf;
     lock_iface lock_inst;
-    enum {LOCK_FREE, HOMEQUEUE, RANDOMQUEUE, AWESOME} strat;
+    enum strategy_t strat;
 };
 
 /******

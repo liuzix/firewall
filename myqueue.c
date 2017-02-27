@@ -21,7 +21,6 @@ bool is_full(struct queue* q) {
     return (q->tail - q->head == q->len);
 }
 extern lock_iface (*lock_gen)(void);
-enum strategy_t {LOCK_FREE, HOMEQUEUE, RANDOMQUEUE, AWESOME};
 
 extern enum strategy_t strat;
 void queue_init(struct queue *q, size_t len) {
