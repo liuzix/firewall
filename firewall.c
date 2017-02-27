@@ -179,7 +179,7 @@ double parallelFirewall(int numPackets,
     PacketSource_t * packetSource = createPacketSource(mean, numSources, experimentNumber);
     StopWatch_t watch;
     long fingerprint = 0;
-    startTimer(&watch);
+
 
     qs = calloc((size_t) numSources, sizeof(struct queue *));
     numQueues = numSources;
@@ -201,7 +201,7 @@ double parallelFirewall(int numPackets,
         pthread_create(threads[i], NULL, parallelWorker, args);
     }
 
-
+    startTimer(&watch);
     for (int i = 0; i < numPackets; i++) {
         for (int j = 0; j < numSources; j++) {
             Packet_t *p = NULL;
