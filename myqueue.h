@@ -36,8 +36,8 @@ void queue_enqueue(struct queue* q, Packet_t p);
  */
 Packet_t queue_dequeue(struct queue *q);
 
-bool is_empty(struct queue *q);
-bool is_full(struct queue* q);
+inline bool is_empty(struct queue *q);
+inline bool is_full(struct queue* q);
 
 void test_queue();
 

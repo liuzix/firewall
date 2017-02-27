@@ -37,7 +37,8 @@ int test_main () {
         strat = LOCK_FREE;
         lock_gen = NULL;
         double t1 = parallelFirewall(T, 1, w1[i], 1, 10, 0);
-
+        printf("rate: %lf\n", T/t1);
+/*
         strat = HOMEQUEUE;
         lock_gen = new_explock;
         double t2 = parallelFirewall(T, 1, w1[i], 1, 10, 0);
@@ -48,14 +49,14 @@ int test_main () {
 
         printf("EXP: lock free=%lf, home queue=%lf, speedup=%lf\n", t1, t2, t1/t2);
         printf("TAS: home queue=%lf, speedup=%lf\n", t3, t1/t3);
-
+*/
     }
 
     printf("========\n\nTest 2: Uniform Speedup\n");
     int w2[] = {1000, 2000, 4000, 8000};
-    int n2[] = {1,2,3,7,13,27};
+    int n2[] = {1,2,3,4,7,8,13,14,27};
     //T = 2*3*7*13*27 << 2;
-    T = (pow(2, 25));
+    T = (pow(2, 29));
     for (int i = 0; i < sizeof(w2)/sizeof(int); i++) {
         for (int j = 0; j < sizeof(n2)/sizeof(int); j++) {
             strat = LOCK_FREE;
@@ -65,9 +66,9 @@ int test_main () {
             printf("W=%d\n", w2[i]);
             strat = LOCK_FREE;
             lock_gen = NULL;
-            double t1 = parallelFirewall(T/(n2[j]*w2[i]), n2[j], w2[i], 1, 32, 0);
+            double t1 = parallelFirewall(T/(n2[j]*w2[i]), n2[j], w2[i], 1, 32, 1);
             printf("lockfree, n = %d, speedup = %lf\n", n2[j], t0 / t1);
-
+/*
             strat = HOMEQUEUE;
             lock_gen = new_explock;
             double t2 = parallelFirewall(T/(n2[j]*w2[i]), n2[j], w2[i], 1, 32, 0);
@@ -92,6 +93,7 @@ int test_main () {
             lock_gen = new_explock;
             double t6 = parallelFirewall(T/(n2[j]*w2[i]), n2[j], w2[i], 1, 32, 0);
             printf("awesome, exp, n = %d, speedup = %lf\n", n2[j], t0 / t6);
+*/
         }
     }
 

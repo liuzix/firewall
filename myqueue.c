@@ -41,11 +41,12 @@ void queue_init(struct queue *q, size_t len) {
 void queue_enqueue(struct queue *q, Packet_t p) {
     assert(q != NULL);
     while (is_full(q)) {
-        if (q->strat != LOCK_FREE)
-            unlock(&q->lock_inst);
-        sched_yield();
-        if (q->strat != LOCK_FREE)
-            lock(&q->lock_inst);
+//        if (q->strat != LOCK_FREE)
+//            unlock(&q->lock_inst);
+        //sched_yield();
+        pthread_yield();
+//        if (q->strat != LOCK_FREE)
+//            lock(&q->lock_inst);
     }
     q->buf[q->tail % q->len] = p;
     q->tail ++;
@@ -54,11 +55,12 @@ void queue_enqueue(struct queue *q, Packet_t p) {
 Packet_t queue_dequeue(struct queue *q) {
     assert(q != NULL);
     while (is_empty(q)) {
-        if (q->strat != LOCK_FREE)
-            unlock(&q->lock_inst);
-        sched_yield();
-        if (q->strat != LOCK_FREE)
-            lock(&q->lock_inst);
+//        if (q->strat != LOCK_FREE)
+//            unlock(&q->lock_inst);
+        //sched_yield();
+        pthread_yield();
+//        if (q->strat != LOCK_FREE)
+//            lock(&q->lock_inst);
     }
     Packet_t r = q->buf[q->head % q->len];
     q->head ++;
