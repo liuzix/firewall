@@ -3,7 +3,7 @@ project(firewall)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD 99)
-SET(CMAKE_C_FLAGS "-O0 -g")
+SET(CMAKE_C_FLAGS "-O3 -g")
 file(GLOB UTILS
         "Utils/*.c"
         )
