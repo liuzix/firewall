@@ -31,7 +31,7 @@ int test_main () {
     printf("Test 1: Idle Lock Overhead\n");
 
     int w1[] = {25, 50, 100, 200, 400, 800};
-    int T = (pow(2, 14));
+    int T = (pow(2, 20));
     for (int  i = 0; i < sizeof(w1)/sizeof(int); i++) {
         printf("W=%d\n", w1[i]);
         strat = LOCK_FREE;
