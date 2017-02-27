@@ -28,6 +28,8 @@ void queue_init(struct queue *q, size_t len) {
     q->len = len;
     if (lock_gen != NULL) {
         q->lock_inst = lock_gen();
+    } else {
+        q->lock_inst.ptr = NULL;
     }
     assert(q->buf != NULL);
 }

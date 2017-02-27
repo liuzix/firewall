@@ -111,7 +111,7 @@ struct queue* dequeue_select() {
         return qs[i % numQueues];
     }
     else if (strat == RANDOMQUEUE) {
-        int i = (int)((double)random() / (double)RAND_MAX);
+        int i = random();
         return qs[i % numQueues];
     }
 }
@@ -127,10 +127,17 @@ void* parallelWorker(void* arg) {
             unlock(&a->q->lock_inst);
         }
         else if (strat == RANDOMQUEUE) {
-            struct queue* temp_q = dequeue_select();
-            lock(&a->q->lock_inst);
-            p = queue_dequeue(temp_q);
-            unlock(&a->q->lock_inst);
+            while (true) {
+                struct queue *temp_q = dequeue_select();
+                lock(&temp_q->lock_inst);
+                if (is_empty(temp_q)) {
+                    unlock(&temp_q->lock_inst);
+                    continue;
+                }
+                p = queue_dequeue(temp_q);
+                unlock(&temp_q->lock_inst);
+                break;
+            }
         }
         else if (strat == AWESOME) {
             struct queue* temp_q = a->q;
@@ -141,7 +148,7 @@ void* parallelWorker(void* arg) {
                 lock(&temp_q->lock_inst);
             }
             p = queue_dequeue(temp_q);
-
+            unlock(&temp_q->lock_inst);
         }
         else if (strat == LOCK_FREE) {
             p = queue_dequeue(a->q);
@@ -157,7 +164,7 @@ void* parallelWorker(void* arg) {
 struct queue* enqueue_select() {
     assert(strat == AWESOME);
     static int i = 0;
-    qs[__sync_fetch_and_add(&i, 1) % numQueues];
+    return qs[__sync_fetch_and_add(&i, 1) % numQueues];
 }
 
 double parallelFirewall(int numPackets,
@@ -173,6 +180,7 @@ double parallelFirewall(int numPackets,
     startTimer(&watch);
 
     qs = calloc((size_t) numSources, sizeof(struct queue *));
+    numQueues = numSources;
     assert(qs);
 
     // initializing queues
