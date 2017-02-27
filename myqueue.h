@@ -15,6 +15,7 @@ struct queue {
     size_t len;
     Packet_t *buf;
     lock_iface lock_inst;
+    enum {LOCK_FREE, HOMEQUEUE, RANDOMQUEUE, AWESOME} strat;
 };
 
 /******

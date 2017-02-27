@@ -22,7 +22,8 @@ bool is_full(struct queue* q) {
 }
 extern lock_iface (*lock_gen)(void);
 enum strategy_t {LOCK_FREE, HOMEQUEUE, RANDOMQUEUE, AWESOME};
-extern enum strategy_t _strat;
+
+extern enum strategy_t strat;
 void queue_init(struct queue *q, size_t len) {
     q->tail = 0;
     q->head = 0;
@@ -33,6 +34,7 @@ void queue_init(struct queue *q, size_t len) {
     } else {
         q->lock_inst.ptr = NULL;
     }
+    q->strat = strat;
     assert(q->buf != NULL);
 }
 
@@ -40,10 +42,10 @@ void queue_init(struct queue *q, size_t len) {
 void queue_enqueue(struct queue *q, Packet_t p) {
     assert(q != NULL);
     while (is_full(q)) {
-        if (_strat != LOCK_FREE)
+        if (q->strat != LOCK_FREE)
             unlock(&q->lock_inst);
         sched_yield();
-        if (_strat != LOCK_FREE)
+        if (q->strat != LOCK_FREE)
             lock(&q->lock_inst);
     }
     q->buf[q->tail % q->len] = p;
@@ -53,10 +55,10 @@ void queue_enqueue(struct queue *q, Packet_t p) {
 Packet_t queue_dequeue(struct queue *q) {
     assert(q != NULL);
     while (is_empty(q)) {
-        if (_strat != LOCK_FREE)
+        if (q->strat != LOCK_FREE)
             unlock(&q->lock_inst);
         sched_yield();
-        if (_strat != LOCK_FREE)
+        if (q->strat != LOCK_FREE)
             lock(&q->lock_inst);
     }
     Packet_t r = q->buf[q->head % q->len];
