@@ -180,7 +180,7 @@ double parallelFirewall(int numPackets,
     StopWatch_t watch;
     long fingerprint = 0;
 
-
+    //startTimer(&watch);
     qs = calloc((size_t) numSources, sizeof(struct queue *));
     numQueues = numSources;
     assert(qs);
